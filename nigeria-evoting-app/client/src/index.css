@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply text-ink font-sans antialiased;
+  background: linear-gradient(
+    90deg,
+    #04703c 0,
+    #04703c clamp(10px, 3vw, 60px),
+    #f6f9f6 clamp(10px, 3vw, 60px),
+    #f6f9f6 calc(100% - clamp(10px, 3vw, 60px)),
+    #04703c calc(100% - clamp(10px, 3vw, 60px)),
+    #04703c 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Soft green wash used to alternate section backgrounds green / white / green
+   down the page, echoing the flag without hurting text contrast */
+.section-tint {
+  @apply bg-green-700/[0.06] dark:bg-gold/[0.06];
+}
+
+.flag-band {
+  @apply flex h-1.5 w-full;
+}
+.flag-band > span {
+  @apply flex-1;
+}
+.flag-band > span:nth-child(1),
+.flag-band > span:nth-child(3) {
+  @apply bg-green-700;
+}
+.flag-band > span:nth-child(2) {
+  @apply bg-white;
+}
+
+/* Visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid #C9A227;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

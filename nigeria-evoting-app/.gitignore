@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+server/prisma/migrations/dev.db*
+server/uploads/*
+!server/uploads/.gitkeep
+server/uploads/*
+!server/uploads/.gitkeep
+.logs/

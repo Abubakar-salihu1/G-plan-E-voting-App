@@ -1,0 +1,206 @@
+// Prisma schema for NaijaVote — PostgreSQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Commission staff (Chairman, Commissioners, Election Officers) ──
+model Admin {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  staffId      String?   @unique
+  passwordHash String
+  role         String // "super-admin" | "chairman" | "commissioner" | "staff"
+  mfaSecret    String? // TOTP secret, AES-256-GCM encrypted at rest
+  mfaEnabled   Boolean   @default(false)
+  mfaLastStep  Int? // last accepted TOTP time-step (blocks code replay)
+  active       Boolean   @default(true)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  tokenVersion Int       @default(0) // bump to end every signed-in session
+  createdAt    DateTime  @default(now())
+}
+
+// One-time invite codes — the ONLY way a new Admin account can be created.
+model AdminInvite {
+  code      String    @id @default(uuid())
+  email     String
+  role      String
+  invitedBy String?
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// ── Citizens ──
+// Identifiers are stored as keyed HMACs (server-side pepper), never raw and
+// never plain SHA-256 (an 11-digit NIN is trivially brute-forced unkeyed).
+model Voter {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  passwordHash     String
+  ninHash          String?   @unique
+  pvcHash          String?   @unique
+  faceTemplateHash String?   @unique // see lib/faceProvider.js for what this really is
+  otpHash          String?
+  otpExpiresAt     DateTime?
+  otpAttempts      Int       @default(0)
+  otpVerified      Boolean   @default(false)
+  mfaSecret        String? // TOTP secret, AES-256-GCM encrypted at rest
+  mfaEnabled       Boolean   @default(false)
+  mfaLastStep      Int?
+  verified         Boolean   @default(false)
+  failedLogins     Int       @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime  @default(now())
+  tokenVersion         Int       @default(0) // bump to end every signed-in session
+  resetHash            String? // password-reset code (keyed hash)
+  resetExpiresAt       DateTime?
+  resetAttempts        Int       @default(0)
+  webauthnChallenge    String? // one-time challenge for an in-progress passkey ceremony
+  webauthnChallengeExp DateTime?
+  passkeys         Passkey[]
+  recoveryCodes    RecoveryCode[]
+  tokens           VotingToken[]
+}
+
+// Fingerprint / face-unlock credentials (WebAuthn). Only the PUBLIC key is stored —
+// the private key never leaves the voter's phone, so there is nothing to steal here.
+model Passkey {
+  id           String   @id @default(uuid())
+  voterId      String
+  voter        Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      Int      @default(0)
+  transports   String?
+  createdAt    DateTime @default(now())
+
+  @@index([voterId])
+}
+
+// ── Elections ──
+model Election {
+  id        String        @id @default(uuid())
+  name      String
+  level     String // "federal" | "state" | "local"
+  state     String?
+  lga       String?
+  startsAt  DateTime
+  endsAt    DateTime
+  timezone  String
+  lockDate  DateTime?
+  status    String        @default("draft") // draft | locked (open/closed are derived from the window)
+  parties   Party[]
+  tokens    VotingToken[]
+  ballots   Ballot[]
+  createdAt DateTime      @default(now())
+}
+
+model Party {
+  id                String   @id @default(uuid())
+  electionId        String
+  election          Election @relation(fields: [electionId], references: [id], onDelete: Restrict)
+  contest           String // e.g. "President", "Governor — Kogi State"
+  name              String
+  acronym           String
+  candidateName     String
+  logoUrl           String?
+  candidatePhotoUrl String?
+  slogan            String?
+  runningMate       String?
+  bio               String?
+  manifestoUrl      String? // uploaded PDF
+  websiteUrl        String?
+  voteCount         Int      @default(0) // cached aggregate; Ballot rows are the source of truth
+  createdAt         DateTime @default(now())
+  ballots           Ballot[]
+
+  @@index([electionId])
+}
+
+// Records "this voter may vote / has voted in this election". It never says
+// what they voted for, and Ballot rows carry NO reference to it (no token, no
+// voter) — that is what makes the ballot box anonymous. Only a keyed hash of
+// the session token is stored.
+model VotingToken {
+  id         String    @id @default(uuid())
+  tokenHash  String
+  voterId    String
+  electionId String
+  spentAt    DateTime?
+  issuedAt   DateTime  @default(now())
+  expiresAt  DateTime
+  voter      Voter     @relation(fields: [voterId], references: [id], onDelete: Restrict)
+  election   Election  @relation(fields: [electionId], references: [id], onDelete: Restrict)
+
+  // One row per voter per election, ever — a spent row can never be re-issued.
+  @@unique([voterId, electionId])
+  @@index([tokenHash])
+}
+
+// Deliberately has NO voter and NO token reference. Timestamp is coarsened to
+// the hour so it cannot be matched against VotingToken.spentAt.
+model Ballot {
+  id         String   @id @default(uuid())
+  electionId String
+  partyId    String
+  castHour   DateTime
+  election   Election @relation(fields: [electionId], references: [id], onDelete: Restrict)
+  party      Party    @relation(fields: [partyId], references: [id], onDelete: Restrict)
+
+  @@index([electionId, partyId])
+}
+
+// Voter-held receipt (stored only as a keyed hash). Lets a voter confirm their
+// submission was recorded without linking it to any ballot row.
+model Receipt {
+  id          String   @id @default(uuid())
+  receiptHash String   @unique
+  castHour    DateTime
+}
+
+// Append-only, hash-chained audit log. `seq` gives a strict total order.
+model AuditLogEntry {
+  id        String   @id @default(uuid())
+  seq       Int      @unique @default(autoincrement())
+  actor     String
+  action    String
+  prevHash  String?
+  hash      String
+  createdAt DateTime @default(now())
+}
+
+model Incident {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  severity    String   @default("low")
+  status      String   @default("open")
+  reportedAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String?
+  audience  String
+  createdBy String?
+  sentAt    DateTime @default(now())
+}
+
+// One-time backup codes for a voter who loses their phone. Only keyed hashes are stored.
+model RecoveryCode {
+  id        String    @id @default(uuid())
+  voterId   String
+  voter     Voter     @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([voterId, codeHash])
+}

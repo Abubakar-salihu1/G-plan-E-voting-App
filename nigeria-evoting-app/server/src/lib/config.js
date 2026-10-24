@@ -22,8 +22,11 @@ if (!dataKeyHex || !/^[0-9a-fA-F]{64}$/.test(dataKeyHex)) {
 }
 
 const faceProvider = process.env.FACE_PROVIDER || 'demo'
-if (isProd && faceProvider === 'demo') {
-  fail('FACE_PROVIDER=demo is not allowed in production: it performs NO real liveness or face matching.')
+// A PUBLIC DEMO may run the simulated face/NIN checks, but only when ALLOW_DEMO=true is set on purpose.
+// The site then shows a "demo" banner. A real election must use a licensed face provider instead.
+const allowDemo = process.env.ALLOW_DEMO === 'true'
+if (isProd && faceProvider === 'demo' && !allowDemo) {
+  fail('FACE_PROVIDER=demo is not allowed in production: it performs NO real liveness or face matching. (For a public demo only, set ALLOW_DEMO=true.)')
 }
 
 // Email (SMTP). When SMTP_HOST + MAIL_FROM are set, OTP and invite codes are
@@ -38,10 +41,12 @@ const smtpPort = Number(process.env.SMTP_PORT) || 587
 // WEBAUTHN_ORIGIN (e.g. https://vote.example.ng). WEBAUTHN_RP_ID defaults to its hostname.
 const codespace = process.env.CODESPACE_NAME
 const codespaceDomain = process.env.GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN || 'app.github.dev'
+// On Render, RENDER_EXTERNAL_URL is the site's own https address and is set automatically.
 const webauthnOrigin =
   process.env.WEBAUTHN_ORIGIN ||
+  process.env.RENDER_EXTERNAL_URL ||
   (codespace ? `https://${codespace}-5173.${codespaceDomain}` : process.env.CLIENT_ORIGIN || 'http://localhost:5173')
-if (isProd && !process.env.WEBAUTHN_ORIGIN) fail('WEBAUTHN_ORIGIN must be set in production (the https address voters use).')
+if (isProd && !process.env.WEBAUTHN_ORIGIN && !process.env.RENDER_EXTERNAL_URL) fail('WEBAUTHN_ORIGIN must be set in production (the https address voters use).')
 let webauthnRpId = process.env.WEBAUTHN_RP_ID
 try {
   webauthnRpId = webauthnRpId || new URL(webauthnOrigin).hostname
@@ -55,12 +60,14 @@ export const config = {
   jwtSecret: secret('JWT_SECRET'),
   hashPepper: secret('HASH_PEPPER'),
   dataKeyHex,
-  clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  clientOrigin: process.env.CLIENT_ORIGIN || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5173',
   trustProxy: process.env.TRUST_PROXY === 'true',
   faceProvider,
+  isDemo: faceProvider === 'demo',
   // In production, OTP/invite codes must be delivered out-of-band; they are
   // only ever echoed back in API responses in non-production environments.
-  devDelivery: !isProd,
+  // Demo escape hatch: if email cannot be sent from the host, codes can be shown on screen — DEMO ONLY.
+  devDelivery: !isProd || (allowDemo && process.env.DEMO_SHOW_CODES === 'true'),
   mail: {
     enabled: !!(smtpHost && mailFrom),
     host: smtpHost,

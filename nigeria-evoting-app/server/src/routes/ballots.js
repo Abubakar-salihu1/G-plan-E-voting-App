@@ -9,6 +9,7 @@ import { HttpError, wrap } from '../lib/http.js'
 import { isUuid } from '../lib/validate.js'
 import { isOpen } from '../lib/electionState.js'
 import { faceProvider, parseImageDataUrl } from '../lib/faceProvider.js'
+import { requireGoodPhoto } from '../lib/imageQuality.js'
 import { requireVoterAuth } from '../middleware/requireVoterAuth.js'
 
 const router = Router()
@@ -49,6 +50,7 @@ router.post('/token', requireVoterAuth, tokenLimiter, wrap(async (req, res) => {
   if (proof.sub !== voter.id) return res.status(401).json({ message: 'Verification does not match this account.' })
 
   const image = parseImageDataUrl(req.body?.image)
+  await requireGoodPhoto(image)
   const { match } = await faceProvider().match({ image, enrolledTemplateHash: voter.faceTemplateHash })
   if (!match) return res.status(403).json({ message: 'Face check failed — please try again in good lighting.' })
 

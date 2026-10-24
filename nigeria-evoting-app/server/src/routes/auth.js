@@ -17,6 +17,7 @@ import { rateLimit } from '../lib/rateLimit.js'
 import { HttpError, wrap } from '../lib/http.js'
 import { isEmail, normEmail, passwordProblem } from '../lib/validate.js'
 import { faceProvider, parseImageDataUrl } from '../lib/faceProvider.js'
+import { requireGoodPhoto } from '../lib/imageQuality.js'
 import { deliverCode, sendNotice } from '../lib/notify.js'
 import { createPasswordReset } from '../lib/passwordReset.js'
 import { createOtpIssuer } from '../lib/otpIssue.js'
@@ -362,6 +363,7 @@ router.post('/verify-face', requireVoterAuth, sensitiveLimiter, wrap(async (req,
   }
 
   const image = parseImageDataUrl(req.body?.image)
+  await requireGoodPhoto(image)
   const { templateHash } = await faceProvider().enroll({ image })
   const dup = await prisma.voter.findFirst({ where: { faceTemplateHash: templateHash, id: { not: voter.id } } })
   if (dup) return res.status(409).json({ message: 'This face is already linked to another account.' })

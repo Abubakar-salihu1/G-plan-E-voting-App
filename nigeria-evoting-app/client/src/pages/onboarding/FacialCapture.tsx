@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmblemLogo from '../../components/EmblemLogo'
 import OnboardingProgress from '../../components/OnboardingProgress'
+import { assessFrame, useFrameQuality } from '../../lib/imageQuality'
 import { voterFetch } from '../../lib/voterAuth'
 
 type Stage = 'requesting' | 'live' | 'denied' | 'captured'
@@ -14,6 +15,8 @@ export default function FacialCapture() {
   const [photo, setPhoto] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const streamRef = useRef<MediaStream | null>(null)
+  const quality = useFrameQuality(videoRef, stage === 'live')
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -21,6 +24,7 @@ export default function FacialCapture() {
       ?.getUserMedia({ video: { facingMode: 'user' } })
       .then((s) => {
         stream = s
+        streamRef.current = s
         if (videoRef.current) videoRef.current.srcObject = s
         setStage('live')
       })
@@ -28,10 +32,23 @@ export default function FacialCapture() {
     return () => stream?.getTracks().forEach((t) => t.stop())
   }, [])
 
+  // After "Retake" the <video> element is created again, so give it the camera stream again.
+  useEffect(() => {
+    if (stage === 'live' && videoRef.current && streamRef.current && videoRef.current.srcObject !== streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+    }
+  }, [stage])
+
   function capture() {
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas) return
+    const now = assessFrame(video)
+    if (!now.ok) {
+      setError(now.problem || 'Could not read the camera picture.')
+      return
+    }
+    setError('')
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     const ctx = canvas.getContext('2d')
@@ -93,7 +110,7 @@ export default function FacialCapture() {
         <p className="mt-5 text-center text-sm text-ink/70">
           {stage === 'requesting' && 'Requesting camera access…'}
           {stage === 'denied' && 'Camera access was denied — enable it in your browser settings to continue.'}
-          {stage === 'live' && 'Center your face in the circle, then blink slowly before capturing.'}
+          {stage === 'live' && (quality.problem || quality.hint || 'Center your face in the circle, then blink slowly before capturing.')}
           {stage === 'captured' && 'Looks good. Submit to finish verification, or retake.'}
         </p>
 
@@ -101,7 +118,8 @@ export default function FacialCapture() {
           {stage === 'live' && (
             <button
               onClick={capture}
-              className="w-full rounded-full bg-green-700 py-2.5 font-semibold text-white hover:bg-green-900"
+              disabled={!quality.ok}
+              className="w-full rounded-full bg-green-700 py-2.5 font-semibold text-white hover:bg-green-900 disabled:opacity-50"
             >
               Capture
             </button>

@@ -1,0 +1,52 @@
+# Render Blueprint for the NaijaVote DEMO. Lives at the ROOT of the GitHub repo.
+# One web service (serves the website + API from one address) and one Postgres database.
+databases:
+  - name: naijavote-db
+    plan: free
+    databaseName: naijavote
+    user: naijavote
+
+services:
+  - type: web
+    name: naijavote
+    runtime: node
+    plan: free
+    rootDir: nigeria-evoting-app
+    buildCommand: cd client && npm install --include=dev && npx vite build && cd ../server && npm install --include=dev && npx prisma generate
+    startCommand: cd server && npx prisma db push --skip-generate && node prisma/seed.js && node src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: naijavote-db
+          property: connectionString
+      - key: TRUST_PROXY
+        value: "true"
+      - key: ALLOW_DEMO
+        value: "true"
+      - key: FACE_PROVIDER
+        value: demo
+      # Paste these when Render asks (see the steps in the chat). Never change DATA_ENCRYPTION_KEY later.
+      - key: JWT_SECRET
+        sync: false
+      - key: HASH_PEPPER
+        sync: false
+      - key: DATA_ENCRYPTION_KEY
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      # Email. If Render blocks SMTP, delete these five and set DEMO_SHOW_CODES=true instead.
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false

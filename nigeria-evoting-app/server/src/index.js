@@ -1,5 +1,8 @@
 import './env.js' // must stay the first import — see comment in that file
 
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -47,7 +50,18 @@ app.use('/api/notifications', notificationsRoutes)
 app.use('/api/audit-log', auditLogRoutes)
 app.use('/api/uploads', uploadsRoutes)
 
+// Lets the website know whether to show the "demo" banner.
+app.get('/api/meta', (_req, res) => res.json({ demo: config.isDemo }))
+
 app.use('/api', (_req, res) => res.status(404).json({ message: 'Not found.' }))
+
+// When the website has been built (client/dist), serve it from this same server so the site and
+// its API share ONE address (needed for passkeys and simple hosting). Unknown paths get the app.
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist')
+if (fs.existsSync(path.join(clientDist, 'index.html'))) {
+  app.use(express.static(clientDist, { index: false, maxAge: '1h' }))
+  app.get(/^\/(?!api\/|uploads\/|health$).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')))
+}
 app.use(errorHandler)
 
 process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err))

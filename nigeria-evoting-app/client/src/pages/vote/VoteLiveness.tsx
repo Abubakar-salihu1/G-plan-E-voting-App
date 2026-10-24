@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import EmblemLogo from '../../components/EmblemLogo'
+import { assessFrame, useFrameQuality } from '../../lib/imageQuality'
 import { voterFetch } from '../../lib/voterAuth'
 
 type Stage = 'requesting' | 'live' | 'denied' | 'captured' | 'error'
@@ -10,6 +11,7 @@ export default function VoteLiveness() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [stage, setStage] = useState<Stage>('requesting')
   const [error, setError] = useState('')
+  const quality = useFrameQuality(videoRef, stage === 'live')
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -33,6 +35,13 @@ export default function VoteLiveness() {
     }
     if (!video || !video.videoWidth) {
       setError('Camera is not ready yet — wait a moment and try again.')
+      setStage('error')
+      return
+    }
+
+    const now = assessFrame(video)
+    if (!now.ok) {
+      setError(now.problem || 'Could not read the camera picture.')
       setStage('error')
       return
     }
@@ -83,14 +92,15 @@ export default function VoteLiveness() {
         <p className="mt-5 text-center text-sm text-ink/70">
           {stage === 'requesting' && 'Requesting camera access…'}
           {stage === 'denied' && 'Camera access is required to vote — enable it and reload.'}
-          {stage === 'live' && 'Look at the camera and hold still.'}
+          {stage === 'live' && (quality.problem || quality.hint || 'Look at the camera and hold still.')}
           {stage === 'captured' && 'Checking your face and starting your voting session…'}
           {stage === 'error' && error}
         </p>
         {stage === 'live' && (
           <button
             onClick={confirmAndContinue}
-            className="mt-5 w-full rounded-full bg-green-700 py-2.5 font-semibold text-white hover:bg-green-900"
+            disabled={!quality.ok}
+            className="mt-5 w-full rounded-full bg-green-700 py-2.5 font-semibold text-white hover:bg-green-900 disabled:opacity-50"
           >
             Confirm face match
           </button>

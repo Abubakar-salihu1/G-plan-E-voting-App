@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
+import DemoBanner from './components/DemoBanner'
 import Footer from './components/Footer'
 import PageTitle from './components/PageTitle'
 import Landing from './pages/Landing'
@@ -42,6 +43,7 @@ export default function App() {
   return (
     <div className="min-h-screen px-[clamp(10px,3vw,60px)]">
       <PageTitle />
+      <DemoBanner />
       <Navbar />
       <main>
         <Routes>

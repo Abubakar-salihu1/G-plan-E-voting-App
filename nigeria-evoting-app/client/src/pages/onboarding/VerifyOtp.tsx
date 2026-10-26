@@ -28,7 +28,9 @@ export default function VerifyOtp() {
         if (data.devOnlyCode) setDevCode(data.devOnlyCode)
         setSeconds(data.retryAfter ?? 60)
         setNotice(
-          data.sent
+          data.devOnlyCode
+            ? 'Your code is shown below.'
+            : data.sent
             ? `Code sent${data.to ? ` to ${data.to}` : ''}. It can take up to a minute — check Spam too.`
             : `A code was already sent${data.to ? ` to ${data.to}` : ''}. Check your inbox and Spam.`,
         )
@@ -104,8 +106,8 @@ export default function VerifyOtp() {
 
       {devCode && (
         <div className="mb-4 rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm text-ink/80">
-          No email/SMS service is connected in this development build, so the code is shown here
-          instead (this never happens in production): <span className="font-mono font-semibold">{devCode}</span>
+          Email isn't available on this prototype, so your code is shown here instead:{' '}
+          <span className="font-mono font-semibold">{devCode}</span>
         </div>
       )}
 

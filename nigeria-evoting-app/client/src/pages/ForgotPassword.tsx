@@ -85,7 +85,7 @@ export default function ForgotPassword() {
             {notice && <p className="rounded-lg bg-green-700/10 p-3 text-sm text-green-900">{notice}</p>}
             {devCode && (
               <p className="rounded-lg bg-gold/20 p-3 text-xs text-ink/80">
-                No email service is connected, so for testing the code is: <strong>{devCode}</strong>
+                Email isn't available on this prototype, so your code is: <strong>{devCode}</strong>
               </p>
             )}
             <div>

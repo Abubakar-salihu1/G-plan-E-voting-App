@@ -13,7 +13,12 @@ async function getTransporter() {
   if (!transporter) {
     const { default: nodemailer } = await import('nodemailer')
     const { host, port, secure, user, pass } = config.mail
-    transporter = nodemailer.createTransport({ host, port, secure, auth: user ? { user, pass } : undefined })
+    transporter = nodemailer.createTransport({
+      host, port, secure,
+      auth: user ? { user, pass } : undefined,
+      // Give up quickly: some hosts silently block outgoing mail ports, and a voter should not wait minutes.
+      connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000,
+    })
   }
   return transporter
 }
@@ -55,6 +60,11 @@ export async function deliverCode(kind, to, code) {
       await t.sendMail({ from: config.mail.from, to, subject, text })
     } catch (err) {
       console.error(`[mail] failed to send ${kind} email:`, err?.message || err)
+      // Prototype hosting that cannot send email: show the code on screen instead of failing (never in real production).
+      if (config.devDelivery) {
+        console.warn(`[mail] falling back to on-screen code for ${kind}`)
+        return { devOnlyCode: code, emailFailed: true }
+      }
       throw new HttpError(502, 'We could not send the email right now. Please try again shortly.')
     }
     return { emailed: true }

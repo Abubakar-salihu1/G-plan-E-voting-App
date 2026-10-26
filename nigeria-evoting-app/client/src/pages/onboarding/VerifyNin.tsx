@@ -62,7 +62,7 @@ export default function VerifyNin() {
           />
           <p className="mt-1 text-xs text-ink/45">
             Checked for duplicates and hashed for real. There's no live national identity database
-            to call in this demo, so any valid 11-digit number is accepted — but it's never stored
+            to call in this prototype, so any valid 11-digit number is accepted — but it's never stored
             as plain text, and can't be reused to open a second account.
           </p>
         </div>

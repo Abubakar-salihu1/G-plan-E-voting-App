@@ -4,12 +4,12 @@ import EmblemLogo from './EmblemLogo'
 export default function Navbar() {
   return (
     <header>
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link to="/" className="flex items-center gap-3 text-ink">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <Link to="/" className="flex shrink-0 items-center gap-2 text-ink sm:gap-3">
           <EmblemLogo className="h-9 w-9" />
-          <span className="font-serif text-lg font-semibold tracking-tight">NaijaVote</span>
+          <span className="whitespace-nowrap font-serif text-lg font-semibold tracking-tight">NaijaVote</span>
         </Link>
-        <div className="flex items-center gap-6">
+        <div className="flex shrink-0 items-center gap-4 sm:gap-6">
           <Link to="/#how-it-works" className="hidden text-sm font-medium text-ink/80 hover:text-ink sm:inline">
             How it works
           </Link>
@@ -25,14 +25,15 @@ export default function Navbar() {
           <Link to="/transparency" className="hidden text-sm font-medium text-ink/80 hover:text-ink sm:inline">
             Transparency
           </Link>
-          <Link to="/login" className="text-sm font-semibold text-green-700 hover:text-green-900">
+          <Link to="/login" className="whitespace-nowrap text-sm font-semibold text-green-700 hover:text-green-900">
             Sign in
           </Link>
           <Link
             to="/signup"
-            className="rounded-full bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-900"
+            className="whitespace-nowrap rounded-full bg-green-700 px-3 py-2 text-sm font-semibold text-white hover:bg-green-900 sm:px-4"
           >
-            Register to vote
+            <span className="sm:hidden">Register</span>
+            <span className="hidden sm:inline">Register to vote</span>
           </Link>
         </div>
       </nav>

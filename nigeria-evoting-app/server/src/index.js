@@ -51,7 +51,7 @@ app.use('/api/audit-log', auditLogRoutes)
 app.use('/api/uploads', uploadsRoutes)
 
 // Lets the website know whether to show the "demo" banner.
-app.get('/api/meta', (_req, res) => res.json({ demo: config.isDemo }))
+app.get('/api/meta', (_req, res) => res.json({ demo: config.isDemo, banner: config.isDemo && !config.hideDemoBanner }))
 
 app.use('/api', (_req, res) => res.status(404).json({ message: 'Not found.' }))
 

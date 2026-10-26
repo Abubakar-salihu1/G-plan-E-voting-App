@@ -64,6 +64,8 @@ export const config = {
   trustProxy: process.env.TRUST_PROXY === 'true',
   faceProvider,
   isDemo: faceProvider === 'demo',
+  // Set HIDE_DEMO_BANNER=true to remove the on-screen demo notice (the footer disclaimer stays).
+  hideDemoBanner: process.env.HIDE_DEMO_BANNER === 'true',
   // In production, OTP/invite codes must be delivered out-of-band; they are
   // only ever echoed back in API responses in non-production environments.
   // Demo escape hatch: if email cannot be sent from the host, codes can be shown on screen — DEMO ONLY.
